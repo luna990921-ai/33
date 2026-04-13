@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Luna OS</title>
+    <style>
+        :root {
+            --main-pink: #ffb6c1;
+            --soft-white: #fffafa;
+            --glass: rgba(255, 255, 255, 0.7);
+            --text-color: #d27b7b;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'PingFang SC', sans-serif; background: var(--soft-white); overflow: hidden; }
+
+        #desktop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://files.catbox.moe/q2254e.jpg') center/cover no-repeat;
+            transition: filter 0.3s ease;
+        }
+
+        /* 桌面图标网格 */
+        .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 60px 25px; position: relative; z-index: 10; }
+        .app-icon { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
+        .icon-box { width: 60px; height: 60px; background: var(--glass); border: 1.5px solid rgba(255, 182, 193, 0.6); border-radius: 15px; display: flex; justify-content: center; align-items: center; font-size: 30px; backdrop-filter: blur(8px); box-shadow: 0 4px 15px rgba(255, 182, 193, 0.2); }
+        .app-name { color: white; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+
+        /* 全屏 App 窗口 */
+        .app-window { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--soft-white); z-index: 100; display: none; flex-direction: column; animation: appOpen 0.3s ease-out; }
+        @keyframes appOpen { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .window-header { padding: 45px 20px 15px; display: flex; align-items: center; border-bottom: 1px solid #ffe4e1; background: white; color: var(--text-color); font-weight: bold; }
+        .back-btn { color: var(--main-pink); font-size: 16px; margin-right: 15px; cursor: pointer; }
+
+        /* --- 聊天界面特有样式 --- */
+        #chat-content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; background: #fffcfc; }
+        
+        .chat-footer {
+            padding: 10px 15px 30px;
+            background: #fff;
+            border-top: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ai-btn { font-size: 20px; color: #a885ee; cursor: pointer; display: flex; align-items: center; }
+        .emoji-btn { font-size: 22px; cursor: pointer; }
+        
+        .input-box {
+            flex: 1;
+            background: #f5f5f5;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+            color: #333;
+        }
+
+        .voice-btn { font-size: 22px; color: var(--text-color); cursor: pointer; }
+        .plus-btn { font-size: 24px; color: var(--main-pink); cursor: pointer; font-weight: bold; }
+
+        /* 功能面板（点击加号弹出） */
+        .extra-panel {
+            display: none;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 20px;
+            background: #f9f9f9;
+            border-top: 1px solid #eee;
+        }
+        .extra-item { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 12px; color: #666; }
+        .extra-icon { width: 50px; height: 50px; background: white; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 24px; border: 1px solid #eee; }
+
+        .status-bar { position: fixed; top: 0; width: 100%; height: 30px; display: flex; justify-content: space-between; padding: 5px 20px; font-size: 12px; color: white; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+<div class="status-bar"><span id="time">12:00</span><span>5G 🔋</span></div>
+<div id="desktop"></div>
+
+<div class="app-grid">
+    <div class="app-icon" onclick="openApp('chat')">
+        <div class="icon-box">💬</div>
+        <div id="chat-app-label" class="app-name">聊天</div>
+    </div>
+    <div class="app-icon" onclick="openApp('diary')"><div class="icon-box">📓</div><div class="app-name">日记本</div></div>
+    <div class="app-icon" onclick="openApp('worldbook')"><div class="icon-box">📖</div><div class="app-name">世界书</div></div>
+    <div class="app-icon" onclick="openApp('game')"><div class="icon-box">🎮</div><div class="app-name">游戏</div></div>
+    <div class="app-icon" onclick="openApp('settings')"><div class="icon-box">⚙️</div><div class="app-name">设置</div></div>
+</div>
+
+<div id="chat-window" class="app-window">
+    <div class="window-header">
+        <span class="back-btn" onclick="closeApp()">⬅ 返回</span>
+        <span id="chat-window-title">聊天</span>
+    </div>
+    
+    <div id="chat-content">
+        <div style="text-align: center; color: #ccc; font-size: 12px; margin-top: 20px;">已经可以开始输入了...</div>
+    </div>
+
+    <div class="chat-footer">
+        <div class="ai-btn">✦</div> <div class="emoji-btn">☺︎</div>
+        <input type="text" class="input-box" placeholder="在这里输入内容...">
+        <div class="voice-btn">🎙</div>
+        <div class="plus-btn" onclick="togglePanel()">+</div>
+    </div>
+
+    <div id="extra-panel" class="extra-panel">
+        <div class="extra-item">
+            <div class="extra-icon">🖼</div>
+            <span>照片</span>
+        </div>
+        </div>
+</div>
+
+<div id="settings-window" class="app-window">
+    <div class="window-header"><span class="back-btn" onclick="closeApp()">⬅ 返回</span><span>设置</span></div>
+    <div style="padding: 20px;">
+        <label style="color:var(--text-color)">修改软件名称：</label>
+        <input type="text" style="width:100%; padding:10px; margin-top:10px; border:1px solid var(--main-pink); border-radius:8px;" 
+               placeholder="输入新名字..." oninput="updateChatName(this.value)">
+    </div>
+</div>
+
+<script>
+    function updateTime() {
+        const now = new Date();
+        document.getElementById('time').innerText = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    function updateChatName(newName) {
+        const name = newName.trim() || "聊天";
+        document.getElementById('chat-app-label').innerText = name;
+        document.getElementById('chat-window-title').innerText = name;
+    }
+
+    function openApp(appId) {
+        document.getElementById(appId + '-window').style.display = 'flex';
+        document.getElementById('desktop').style.filter = 'blur(15px) brightness(0.9)';
+    }
+
+    function closeApp() {
+        const windows = document.querySelectorAll('.app-window');
+        windows.forEach(win => win.style.display = 'none');
+        document.getElementById('desktop').style.filter = 'none';
+        document.getElementById('extra-panel').style.display = 'none'; // 关闭窗口时收起面板
+    }
+
+    function togglePanel() {
+        const panel = document.getElementById('extra-panel');
+        panel.style.display = panel.style.display === 'grid' ? 'none' : 'grid';
+    }
+</script>
+
+</body>
+</html>
