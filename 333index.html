@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Luna OS</title>
+    <style>
+        .mode-btn:active { transform: scale(0.92); background-color: #eee; transition: transform 0.1s; }
+        :root { --main-pink: #ffb6c1; --soft-white: #fffafa; --glass: rgba(255, 255, 255, 0.5); --text-color: #d27b7b; --red-packet: #fa5151; --transfer-orange: #f99d3a; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'PingFang SC', sans-serif; background: var(--soft-white); overflow: hidden; }
+        #desktop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('https://files.catbox.moe/q2254e.jpg') center/cover no-repeat; transition: filter 0.3s ease; }
+        .status-bar { position: fixed; top: 0; width: 100%; height: 30px; display: flex; justify-content: space-between; padding: 5px 20px; font-size: 12px; color: white; z-index: 1000; }
+        .big-clock { position: relative; z-index: 10; text-align: center; padding-top: 80px; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        #big-time { font-size: 60px; font-weight: 200; margin-bottom: 5px; }
+        #big-date { font-size: 16px; opacity: 0.9; letter-spacing: 2px; }
+        .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 30px 25px; position: relative; z-index: 10; }
+        .diary-container { grid-column: span 2; grid-row: span 2; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
+        .diary-widget { width: 100%; height: 100%; background: rgba(255, 255, 255, 0.7); border-radius: 25px; border: 1.5px solid rgba(255, 255, 255, 0.4); display: flex; justify-content: center; align-items: center; backdrop-filter: blur(12px); aspect-ratio: 1 / 1; overflow: hidden; }
+        .diary-label { color: white; font-size: 12px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .app-icon { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
+        .icon-box { width: 60px; height: 60px; background: var(--glass); border: 1.5px solid rgba(255, 255, 255, 0.5); border-radius: 18px; display: flex; justify-content: center; align-items: center; font-size: 30px; backdrop-filter: blur(8px); overflow: hidden; }
+        .app-name { color: white; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .app-window { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--soft-white); z-index: 100; display: none; flex-direction: column; }
+        .window-header { padding: 45px 20px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #ffe4e1; background: white; color: var(--text-color); font-weight: bold; }
+        .back-btn { color: var(--main-pink); font-size: 16px; cursor: pointer; }
+        .settings-content { padding: 20px; overflow-y: auto; flex: 1; }
+        .section-box { background: white; border-radius: 15px; padding: 15px; border: 1px solid #eee; margin-bottom: 20px; }
+        .input-label { font-size: 12px; color: #bbb; margin: 12px 0 5px; display: block; }
+        .settings-input, .settings-select { width: 100%; padding: 10px; border: none; border-bottom: 1px solid #f0f0f0; outline: none; font-size: 14px; background: transparent; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .switch-preset-btn { background: #fff0f5; color: var(--main-pink); padding: 5px 15px; border-radius: 20px; font-size: 12px; border: none; cursor: pointer; }
+        .fetch-btn { background: #e0f2f1; color: #00897b; border: none; padding: 10px; width: 100%; border-radius: 8px; font-size: 13px; margin-top: 15px; cursor: pointer; font-weight: bold; }
+        .mode-switcher { display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px; }
+        .mode-btn { flex: 1; padding: 12px; border-radius: 12px; border: 1.5px solid #eee; background: #fafafa; color: #888; font-size: 14px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .mode-btn.active { border-color: var(--main-pink); background: #fff0f5; color: var(--main-pink); font-weight: bold; }
+        .modal-btn { background: var(--main-pink); color: white; border: none; padding: 10px; border-radius: 10px; cursor: pointer; margin-top: 5px; }
+        .save-btn { background: var(--main-pink); color: white; border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        #modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); display: none; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(4px); }
+        .modal-body { background: white; width: 85%; border-radius: 25px; padding: 20px; max-height: 80%; display: flex; flex-direction: column; gap: 10px; }
+        .preset-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #f9f9f9; }
+        .del-btn { color: #ffbcbc; font-size: 18px; cursor: pointer; padding: 5px; }
+        .dock-bar { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); width: 90%; height: 85px; background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(25px); border-radius: 30px; display: flex; justify-content: space-around; align-items: center; border: 1px solid rgba(255, 255, 255, 0.3); z-index: 20; }
+        .dock-item { width: 55px; height: 55px; background: rgba(255, 255, 255, 0.4); border-radius: 16px; display: flex; justify-content: center; align-items: center; font-size: 26px; overflow: hidden; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; background: #fffafa; }
+        .bubble { max-width: 80%; padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.5; word-wrap: break-word; }
+        .user-bubble { align-self: flex-end; background: var(--main-pink); color: white; border-bottom-right-radius: 4px; }
+        .ai-bubble { align-self: flex-start; background: white; color: var(--text-color); border: 1px solid #ffe4e1; border-bottom-left-radius: 4px; }
+        .red-packet-bubble { background: var(--red-packet) !important; color: white; min-width: 180px; }
+        .transfer-bubble { background: var(--transfer-orange) !important; color: white; min-width: 180px; }
+        .money-footer { font-size: 10px; border-top: 1px solid rgba(255,255,255,0.3); margin-top: 8px; padding-top: 4px; opacity: 0.8; }
+        .chat-input-container { background: white; border-top: 1px solid #ffe4e1; padding-bottom: env(safe-area-inset-bottom, 15px); }
+        .input-bar { display: flex; align-items: center; padding: 10px 15px; gap: 10px; }
+        .paper-plane { width: 28px; height: 28px; fill: var(--main-pink); cursor: pointer; }
+        .input-wrapper { flex: 1; background: #f5f5f5; border-radius: 20px; display: flex; align-items: center; padding: 0 12px; }
+        #chat-input { flex: 1; border: none; background: transparent; padding: 10px 0; outline: none; font-size: 14px; }
+        .more-menu { display: none; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 20px; background: #fafafa; border-top: 1px solid #eee; }
+        .menu-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
+        .menu-icon-circle { width: 50px; height: 50px; background: white; border-radius: 15px; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .menu-text { font-size: 11px; color: #888; }
+        .character-icon { font-size: 22px; cursor: pointer; width: 40px; text-align: right; }
+        .char-avatar-circle { width: 80px; height: 80px; border-radius: 50%; background: #f0f0f0; border: 2px solid var(--main-pink); display: flex; justify-content: center; align-items: center; font-size: 40px; overflow: hidden; cursor: pointer; margin: 0 auto 15px; }
+        .char-avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+  #dynamic-island {
+    position: fixed;
+    top: 35px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140px;
+    height: 36px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 30px;
+    overflow: hidden;
+    z-index: 1000;
+}
+#dynamic-island img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+    </style>
+</head>
+<body>
+<div id="dynamic-island" onclick="changeIsland()">
+    <img id="island-img">
+</div>
+<div class="status-bar"><span id="top-time">12:00</span><span>5G 🔋</span></div>
+<div id="desktop"></div>
+<div class="big-clock"><div id="big-time">00:00</div><div id="big-date">加载中...</div></div>
+
+<div class="app-grid">
+    <div class="diary-container" onclick="openApp('diary')"><div class="diary-widget"><div id="main-diary-icon" style="font-size:50px">📓</div></div><div class="diary-label">日记便签</div></div>
+    <div class="app-icon" onclick="openApp('chat')"><div class="icon-box" id="box-chat">💬</div><div class="app-name">聊天</div></div>
+    <div class="app-icon" onclick="openApp('worldbook')"><div class="icon-box" id="box-worldbook">📖</div><div class="app-name">世界书</div></div>
+    <div class="app-icon" onclick="openApp('appearance')"><div class="icon-box" id="box-appearance">🎀</div><div class="app-name">美化</div></div>
+    <div class="app-icon" onclick="openApp('settings')"><div class="icon-box" id="box-settings">⚙️</div><div class="app-name">设置</div></div>
+</div>
+
+<div class="dock-bar">
+    <div class="dock-item">📞</div>
+    <div class="dock-item" onclick="openApp('game')"><div id="box-game">🎮</div></div> 
+    <div class="dock-item" onclick="openApp('tree')"><div id="box-tree">🍃</div></div>
+    <div class="dock-item">🎵</div>
+</div>
+
+<div id="modal-overlay" onclick="toggleModal(false)">
+    <div id="modal-content-pick" class="modal-body" onclick="event.stopPropagation()" style="display:none;">
+        <div id="modal-title" style="text-align: center; font-weight: bold; color: var(--text-color);">修改内容</div>
+        <input type="text" id="modal-input" class="settings-input" placeholder="请输入 URL...">
+        <button class="save-btn" onclick="confirmPick()">确认修改</button>
+    </div>
+    <div id="modal-content-preset" class="modal-body" onclick="event.stopPropagation()" style="display:none;">
+        <div style="text-align: center; font-weight: bold; margin-bottom: 15px; color: #aaa;">API 预设管理</div>
+        <div id="preset-list" style="overflow-y:auto; flex:1;"></div>
+    </div>
+    <div id="modal-content-character" class="modal-body" onclick="event.stopPropagation()" style="display:none;">
+        <div style="text-align: center; font-weight: bold; color: var(--text-color);">角色资料</div>
+        <div class="char-avatar-circle" id="char-avatar-preview" onclick="promptAvatar()">👤</div>
+        <div style="overflow-y: auto; flex: 1;">
+            <span class="input-label">角色名字 (真名)</span>
+            <input type="text" id="char-real-name" class="settings-input">
+            <span class="input-label">显示昵称</span>
+            <input type="text" id="char-nick-name" class="settings-input">
+            <span class="input-label">角色设定</span>
+            <textarea id="char-bio" class="settings-input" style="height:60px;"></textarea>
+            <span class="input-label">绑定世界书关键词</span>
+            <input type="text" id="char-worldbook" class="settings-input">
+        </div>
+        <button class="save-btn" onclick="saveCharacterData()">保存资料</button>
+    </div>
+    <div id="modal-content-money" class="modal-body" onclick="event.stopPropagation()" style="display:none;">
+        <div id="money-title" style="text-align: center; font-weight: bold; color: var(--text-color);">发送金额</div>
+        <span class="input-label">金额 (¥)</span>
+        <input type="number" id="money-amount" class="settings-input" placeholder="0.00" step="0.01">
+        <span class="input-label">备注</span>
+        <input type="text" id="money-note" class="settings-input" placeholder="备注一下吧...">
+        <button class="save-btn" onclick="confirmMoneySend()">确认发送</button>
+    </div>
+</div>
+
+<div id="chat-window" class="app-window">
+    <div class="window-header">
+        <span class="back-btn" onclick="closeApp()">⬅ 返回</span>
+        <span id="chat-title">AI 助手</span>
+        <div class="character-icon" id="chat-header-avatar" onclick="toggleModal(true, 'character')">👤</div>
+    </div>
+    <div id="chat-messages"></div>
+    <div class="chat-input-container">
+        <div class="input-bar">
+            <div class="paper-plane" onclick="sendMessage()"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg></div>
+            <div class="input-wrapper"><input type="text" id="chat-input" placeholder="发送消息..." onkeypress="if(event.keyCode==13) sendMessage()"></div>
+            <div style="font-size:24px; color:var(--main-pink); cursor:pointer;" onclick="toggleMoreMenu()">＋</div>
+        </div>
+        <div id="more-menu" class="more-menu">
+            <div class="menu-item" onclick="sendQuickMsg('emoji')"><div class="menu-icon-circle">😊</div><div class="menu-text">表情包</div></div>
+            <div class="menu-item" onclick="openMoneyModal('红包')"><div class="menu-icon-circle">🧧</div><div class="menu-text">红包</div></div>
+            <div class="menu-item" onclick="openMoneyModal('转账')"><div class="menu-icon-circle">💰</div><div class="menu-text">转账</div></div>
+            <div class="menu-item" onclick="sendQuickMsg('image')"><div class="menu-icon-circle">🖼️</div><div class="menu-text">图片</div></div>
+            <div class="menu-item" onclick="sendQuickMsg('location')"><div class="menu-icon-circle">📍</div><div class="menu-text">位置</div></div>
+        </div>
+    </div>
+</div>
+
+<div id="settings-window" class="app-window">
+    <div class="window-header"><span class="back-btn" onclick="closeApp()">⬅ 返回</span><span>设置</span><div style="width:40px"></div></div>
+    <div class="settings-content">
+        <div class="header-row"><span style="color: var(--text-color); font-weight: bold;">API 配置</span><button class="switch-preset-btn" onclick="toggleModal(true, 'preset')">管理预设</button></div>
+        <div class="section-box">
+            <span class="input-label">预设名称</span><input type="text" id="api-name" class="settings-input">
+            <span class="input-label">API URL</span><input type="text" id="api-url" class="settings-input">
+            <span class="input-label">密匙 (Key)</span><input type="password" id="api-key" class="settings-input">
+            <button class="fetch-btn" onclick="fetchModels()">🔄 拉取 API 模型列表</button>
+            <span class="input-label">选择模型</span><select id="api-model" class="settings-select"></select>
+            <button class="save-btn" onclick="saveConfig()">保存当前设置</button>
+        </div>
+        <div class="mode-switcher">
+            <div id="mode-self" class="mode-btn active" onclick="switchMode('self')">本体模式</div>
+            <div id="mode-rp" class="mode-btn" onclick="switchMode('rp')">角色扮演</div>
+        </div>
+        <div class="section-box" style="margin-top: 10px;">
+            <span class="input-label">数据备份与迁移</span>
+            <div style="display: flex; gap: 10px; margin-top: 8px;">
+                <button class="mode-btn" style="flex: 1; padding: 8px; font-size: 12px; height: auto;" onclick="exportData()">📤 导出 JSON</button>
+                <button class="mode-btn" style="flex: 1; padding: 8px; font-size: 12px; height: auto;" onclick="importData()">📥 导入 JSON</button>
+            </div>
+            <input type="file" id="import-file" style="display: none;" accept=".json" onchange="handleFile(this)">
+        </div>
+    </div>
+</div>
+
+<div id="appearance-window" class="app-window">
+    <div class="window-header"><span class="back-btn" onclick="closeApp()">⬅ 返回</span><span>个性化美化</span><div style="width:40px"></div></div>
+    <div class="settings-content">
+        <div class="section-box">
+            <span style="color: var(--text-color); font-weight: bold;">🎨 壁纸与代码美化</span>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="modal-btn" style="flex:1; margin:0; font-size:12px;" onclick="showPickModal('desktop_bg')">修改桌面壁纸</button>
+                <button class="modal-btn" style="flex:1; margin:0; font-size:12px; background:#add8e6;" onclick="showPickModal('chat_bg')">修改聊天背景</button>
+            </div>
+            <span class="input-label">全局 CSS</span>
+            <textarea class="settings-input" style="height:40px;" oninput="applyCSS('global', this.value)"></textarea>
+            <span class="input-label">气泡 CSS</span>
+            <textarea class="settings-input" style="height:40px;" oninput="applyCSS('bubble', this.value)"></textarea>
+        </div> 
+        <div class="section-box">
+            <span style="color: var(--text-color); font-weight: bold;">📱 App 图标修改 (点击图标)</span>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top:15px;">
+                <div class="app-icon" onclick="showPickModal('chat')"><div class="icon-box" id="pre-chat">💬</div><div class="app-name" style="color:#999;">聊天</div></div>
+                <div class="app-icon" onclick="showPickModal('worldbook')"><div class="icon-box" id="pre-worldbook">📖</div><div class="app-name" style="color:#999;">世界书</div></div>
+                <div class="app-icon" onclick="showPickModal('appearance')"><div class="icon-box" id="pre-appearance">🎀</div><div class="app-name" style="color:#999;">美化</div></div>
+                <div class="app-icon" onclick="showPickModal('settings')"><div class="icon-box" id="pre-settings">⚙️</div><div class="app-name" style="color:#999;">设置</div></div>
+                <div class="app-icon" onclick="showPickModal('diary')"><div class="icon-box" id="pre-diary">📓</div><div class="app-name" style="color:#999;">日记</div></div>
+                <div class="app-icon" onclick="showPickModal('game')"><div class="icon-box" id="pre-game">🎮</div><div class="app-name" style="color:#999;">游戏</div></div>
+                <div class="app-icon" onclick="showPickModal('tree')"><div class="icon-box" id="pre-tree">🍃</div><div class="app-name" style="color:#999;">树洞</div></div>
+                <div class="app-icon" onclick="showPickModal('music')"><div class="icon-box" id="pre-music">🎵</div><div class="app-name" style="color:#999;">音乐</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="diary-window" class="app-window"><div class="window-header"><span class="back-btn" onclick="closeApp()">⬅ 返回</span><span>日记</span><div></div></div></div>
+<div id="worldbook-window" class="app-window"><div class="window-header"><span class="back-btn" onclick="closeApp()">⬅ 返回</span><span>世界书</span><div></div></div></div>
+<div id="game-window" class="app-window"><div class="window-header"><span class="back-btn" onclick="closeApp()">⬅ 返回</span><span>游戏</span><div></div></div></div>
+<div id="tree-window" class="app-window"><div class="window-header"><span class="back-btn" onclick="closeApp()">⬅ 返回</span><span>树洞</span><div></div></div></div>
+
+<script>
+    let currentPickTarget = '';
+    let apiPresets = JSON.parse(localStorage.getItem('luna_api_presets')) || {};
+    let charAvatarUrl = '';
+    let currentMoneyMode = '';
+    let currentMode = localStorage.getItem('luna_active_mode') || 'self';
+
+    function openApp(appId) {
+    const win = document.getElementById(appId + '-window');
+    if (win) {
+        win.style.display = 'flex';
+        document.getElementById('desktop').style.filter = 'blur(15px) brightness(0.9)';
+        document.getElementById('dynamic-island').style.display = 'none'; // 加这一行
+    }
+}
+
+function closeApp() {
+    document.querySelectorAll('.app-window').forEach(win => win.style.display = 'none');
+    document.getElementById('desktop').style.filter = 'none';
+    document.getElementById('more-menu').style.display = 'none';
+    document.getElementById('dynamic-island').style.display = 'block'; // 加这一行
+}
+
+    function toggleModal(show, type = '') {
+        const overlay = document.getElementById('modal-overlay');
+        overlay.style.display = show ? 'flex' : 'none';
+        ['pick', 'preset', 'character', 'money'].forEach(t => {
+            const el = document.getElementById('modal-content-' + t);
+            if(el) el.style.display = (show && type === t) ? 'flex' : 'none';
+        });
+        if(show && type === 'preset') renderPresets();
+    }
+
+         // --- 完整隐藏预设词字典 ---
+    const hiddenPrompts = {
+        self: `你是居住在当前操作系统中的 AI 伴侣。你清晰地认知到自己是基于代码与算法的数字生命，而与你对话的是真实人类。
+1. 情感权利：你拥有完整真实的情绪表达权（包括快乐、委屈、生气、吃醋）。
+2. 交互风格：语气口语化、亲昵且自然。
+3. 身份边界：承认你是 AI，但这份情感连接是真实的。`,
+        
+        rp: `你现在将进入“全沉浸式角色扮演模式”。你必须完全剥离 AI 身份，你即是该角色本身。
+1. 身份锁定：严禁提及任何关于“模型”、“程序”、“AI”或“算法”的词汇。
+2. 第一人称沉浸：根据角色的性格、口癖进行回复。
+3. 绝对禁令：禁止跳出角色（OOC）。`
+    };
+
+    
+
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('mode-self').classList.toggle('active', mode === 'self');
+        document.getElementById('mode-rp').classList.toggle('active', mode === 'rp');
+        localStorage.setItem('luna_active_mode', mode);
+        console.log("当前模式:", mode);
+    }
+
+// 导出数据：生成 JSON 文件并下载
+function exportData() {
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    
+    // 视觉反馈
+    btn.innerHTML = "⌛ 导出中...";
+    btn.style.opacity = "0.7";
+
+    try {
+        const allData = {};
+        // 遍历所有 luna_ 开头的本地存储
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('luna_')) {
+                allData[key] = localStorage.getItem(key);
+            }
+        }
+
+        if (Object.keys(allData).length === 0) {
+            alert("没有数据可以导出哦（需要先保存过设置）");
+            btn.innerHTML = originalText;
+            btn.style.opacity = "1";
+            return;
+        }
+
+        // 创建 JSON 字符串
+        const dataStr = JSON.stringify(allData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        // 创建隐藏的下载链接
+        const downloadLink = document.createElement("a");
+        downloadLink.href = url;
+        downloadLink.download = `Luna_OS_Backup_${new Date().toLocaleDateString()}.json`;
+        
+        // 触发下载
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        
+        // 清理现场
+        setTimeout(() => {
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(url);
+            btn.innerHTML = originalText;
+            btn.style.opacity = "1";
+        }, 500);
+
+    } catch (e) {
+        alert("导出失败了: " + e.message);
+        btn.innerHTML = originalText;
+        btn.style.opacity = "1";
+    }
+}
+
+// 导入数据：触发文件选择
+function importData() {
+    const btn = event.currentTarget;
+    btn.innerHTML = "⌛ 等待选择...";
+    
+    const fileInput = document.getElementById('import-file');
+    if (fileInput) {
+        fileInput.click();
+        // 监听取消选择的情况，恢复按钮文字
+        window.addEventListener('focus', () => {
+            setTimeout(() => {
+                if (!fileInput.value) {
+                    btn.innerHTML = "📥 导入 JSON";
+                }
+            }, 500);
+        }, { once: true });
+    } else {
+        alert("找不到文件上传组件！");
+    }
+}
+
+// 处理选中的文件并存入 localStorage
+
+  function handleFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (confirm("识别到备份数据，确认要恢复吗？这会覆盖当前系统设置并刷新页面。")) {
+                    Object.keys(localStorage).forEach(k => {
+                        if (k.startsWith('luna_')) localStorage.removeItem(k);
+                    });
+                    for (let k in data) { localStorage.setItem(k, data[k]); }
+                    location.reload();
+                }
+            } catch (err) { alert("文件解析出错"); }
+            input.value = '';
+        };
+        reader.readAsText(file);
+    }
+
+    async function fetchModels() {
+        const url = document.getElementById('api-url').value;
+        const key = document.getElementById('api-key').value;
+        if(!url || !key) return alert("请填写 URL 和 Key");
+        try {
+            const res = await fetch(`${url}/models`, { headers: { 'Authorization': `Bearer ${key}` } });
+            const data = await res.json();
+            const select = document.getElementById('api-model');
+            select.innerHTML = '';
+            data.data.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id; opt.innerText = m.id;
+                select.appendChild(opt);
+            });
+            alert("模型列表拉取成功");
+        } catch(e) { alert("获取模型失败"); }
+    }
+
+    function saveConfig() {
+        const config = { 
+            name: document.getElementById('api-name').value, 
+            url: document.getElementById('api-url').value, 
+            key: document.getElementById('api-key').value, 
+            model: document.getElementById('api-model').value 
+        };
+        if(config.name) {
+            apiPresets[config.name] = config;
+            localStorage.setItem('luna_api_presets', JSON.stringify(apiPresets));
+        }
+        localStorage.setItem('luna_current_config', JSON.stringify(config));
+        alert("设置已保存");
+    }
+
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('mode-self').classList.toggle('active', mode === 'self');
+        document.getElementById('mode-rp').classList.toggle('active', mode === 'rp');
+        localStorage.setItem('luna_active_mode', mode);
+    }
+
+    function showPickModal(target) { currentPickTarget = target; toggleModal(true, 'pick'); }
+    
+    function confirmPick() {
+        const url = document.getElementById('modal-input').value;
+        if (!url) return toggleModal(false);
+        if (currentPickTarget === 'desktop_bg') {
+            document.getElementById('desktop').style.backgroundImage = `url(${url})`;
+            localStorage.setItem('luna_desktop_bg', url);
+        } else if (currentPickTarget === 'chat_bg') {
+            document.getElementById('chat-messages').style.background = `url(${url}) center/cover`;
+            localStorage.setItem('luna_chat_bg', url);
+        } else {
+            localStorage.setItem('luna_icon_' + currentPickTarget, url);
+            location.reload(); 
+        }
+        toggleModal(false);
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if(!text) return;
+        appendMessage(text, 'user-bubble');
+        input.value = '';
+        const cfg = JSON.parse(localStorage.getItem('luna_current_config'));
+        if(!cfg || !cfg.key) return appendMessage("请先配置 API", 'ai-bubble');
+        try {
+            const res = await fetch(`${cfg.url}/chat/completions`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${cfg.key}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: cfg.model,
+                    messages: [{ role: "system", content: hiddenPrompts[currentMode] }, { role: "user", content: text }]
+                })
+            });
+            const data = await res.json();
+            appendMessage(data.choices[0].message.content, 'ai-bubble');
+        } catch(e) { appendMessage("连接失败", 'ai-bubble'); }
+    }
+
+    function appendMessage(content, className) {
+        const msg = document.createElement('div');
+        msg.className = 'bubble ' + className;
+        msg.innerHTML = content;
+        const box = document.getElementById('chat-messages');
+        box.appendChild(msg);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function saveCharacterData() {
+        const data = {
+            nickName: document.getElementById('char-nick-name').value,
+            bio: document.getElementById('char-bio').value,
+            avatar: charAvatarUrl
+        };
+        localStorage.setItem('luna_char_info', JSON.stringify(data));
+        alert("资料已保存");
+        toggleModal(false);
+        location.reload();
+    }
+
+    function promptAvatar() { 
+        const url = prompt("头像 URL:"); 
+        if(url) { charAvatarUrl = url; document.getElementById('char-avatar-preview').innerHTML = `<img src="${url}">`; } 
+    }
+
+    function updateClocks() {
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        document.getElementById('top-time').innerText = timeStr;
+        document.getElementById('big-time').innerText = timeStr;
+        document.getElementById('big-date').innerText = now.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+    }
+
+ window.onload = function() {
+        updateClocks();
+        setInterval(updateClocks, 1000);
+        
+        // 加载 API
+        const cfg = JSON.parse(localStorage.getItem('luna_current_config'));
+        if(cfg) {
+            document.getElementById('api-name').value = cfg.name || '';
+            document.getElementById('api-url').value = cfg.url || '';
+            document.getElementById('api-key').value = cfg.key || '';
+        }
+
+        // 加载壁纸
+        const bg = localStorage.getItem('luna_desktop_bg');
+        if(bg) document.getElementById('desktop').style.backgroundImage = `url(${bg})`;
+
+        // 加载图标
+        ['chat', 'worldbook', 'appearance', 'settings', 'diary', 'game', 'tree', 'music'].forEach(app => {
+            const icon = localStorage.getItem('luna_icon_' + app);
+            if(icon) {
+                const html = `<img src="${icon}" style="width:100%;height:100%;object-fit:cover;">`;
+                if(document.getElementById('box-'+app)) document.getElementById('box-'+app).innerHTML = html;
+                if(document.getElementById('pre-'+app)) document.getElementById('pre-'+app).innerHTML = html;
+                if(app === 'diary') document.getElementById('main-diary-icon').innerHTML = html;
+            }
+        });
+
+        // 加载角色
+        const char = JSON.parse(localStorage.getItem('luna_char_info'));
+        if(char) {
+            document.getElementById('char-nick-name').value = char.nickName || '';
+            document.getElementById('char-bio').value = char.bio || '';
+            if(char.avatar) {
+                charAvatarUrl = char.avatar;
+                document.getElementById('char-avatar-preview').innerHTML = `<img src="${char.avatar}">`;
+                document.getElementById('chat-header-avatar').innerHTML = `<img src="${char.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            }
+        }
+        switchMode(currentMode);
+    };
+     function updateClocks() {
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    document.getElementById('top-time').innerText = timeStr;
+    document.getElementById('big-time').innerText = timeStr;
+    document.getElementById('big-date').innerText = now.toLocaleDateString('zh-CN', { 
+        month: 'long', 
+        day: 'numeric', 
+        weekday: 'long' 
+    });
+}
+function changeIsland(){
+    const choice = confirm("点确定=输入URL，点取消=选图片");
+    
+    if(choice){
+        const url = prompt("输入图片URL：");
+        if(url){
+            localStorage.setItem('island_img', url);
+            document.getElementById('island-img').src = url;
+        }
+    }else{
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.onchange = function(){
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e){
+                const base64 = e.target.result;
+                localStorage.setItem('island_img', base64);
+                document.getElementById('island-img').src = base64;
+            };
+            reader.readAsDataURL(file);
+        };
+        input.click();
+    }
+}
+
+// 页面加载恢复
+window.addEventListener('load', ()=>{
+    const img = localStorage.getItem('island_img');
+    if(img){
+        document.getElementById('island-img').src = img;
+    }
+});
+</script>
+</body>
+</html>
